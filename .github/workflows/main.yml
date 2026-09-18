@@ -156,21 +156,19 @@ jobs:
             sed -i 's/\bCONNLOG_TYPE_WIFI\b/CONN_DEBUG_TYPE_WIFI/g' "$ADAPTOR_C"
             grep -n "CONN_DEBUG_TYPE_WIFI" "$ADAPTOR_C" | head -5
           fi
-      - name: 屏蔽 conninfra 里的 BT/FM/GPS
+      - name: 修复 gps_drv_init 空参数
         run: |
-          MK="vendor/mediatek/kernel_modules/connectivity/conninfra/Makefile"
-          if [ -f "$MK" ]; then
-            echo "=== 原始 Drv init 块 ==="
-            grep -n "drv_init/" "$MK"
-            sed -i 's|^\(\$(MODULE_NAME)-objs += drv_init/bluetooth_drv_init\.o\)|# \1|' "$MK"
-            sed -i 's|^\(\$(MODULE_NAME)-objs += drv_init/fm_drv_init\.o\)|# \1|' "$MK"
-            sed -i 's|^\(\$(MODULE_NAME)-objs += drv_init/gps_drv_init\.o\)|# \1|' "$MK"
-            echo "=== 修改后 Drv init 块 ==="
-            grep -n "drv_init/" "$MK"
+          F="vendor/mediatek/kernel_modules/connectivity/conninfra/drv_init/gps_drv_init.c"
+          if [ -f "$F" ]; then
+            echo "=== 原始 ==="
+            grep -n "mtk_wcn_gpsdl_drv_init" "$F"
+            sed -i 's/mtk_wcn_gpsdl_drv_init()/mtk_wcn_gpsdl_drv_init(void)/' "$F"
+            echo "=== 修改后 ==="
+            grep -n "mtk_wcn_gpsdl_drv_init" "$F"
           else
-            echo "找不到 $MK"
+            echo "找不到 $F"
+            find vendor/mediatek/kernel_modules/connectivity/ -name "gps_drv_init.c"
           fi
-   
       - name: 编译内核
         run: |
           export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
