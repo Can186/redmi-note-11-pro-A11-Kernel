@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: debian-12
+    runs-on: debian-13
     steps:
       - name: 拉取内核源码
         uses: actions/checkout@v4
