@@ -6,10 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: debian-12
     steps:
       - name: 拉取内核源码
         uses: actions/checkout@v4
+
       - name: 添加 stpcpy 实现
         run: |
           if ! grep -q "char \*stpcpy" lib/string.c; then
@@ -17,11 +18,8 @@ jobs:
           fi
           grep -n "stpcpy" lib/string.c | head -5
 
-
       - name: 安装工具链
         run: |
-          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list || true
-          sudo rm -rf /var/lib/apt/lists/*
           sudo apt-get update || true
           sudo apt-get install -y flex bison bc libelf-dev libssl-dev make zip wget git python3 || true
 
@@ -43,6 +41,8 @@ jobs:
 
           echo "=== 工具链检查 ==="
           /opt/clang12/bin/clang --version || true
+          ls /opt/gcc-arm64/bin/ | head -5
+          ls /opt/gcc-arm32/bin/ | head -5
 
           exit 0
 
