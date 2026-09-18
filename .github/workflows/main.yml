@@ -186,7 +186,22 @@ jobs:
           ls -la KernelSU-Next/ 2>/dev/null || ls -la KernelSU/ 2>/dev/null || true
           echo "=== Kconfig 里的 config 名 ==="
           grep -rn "config KSU" KernelSU-Next/Kconfig 2>/dev/null | head -20 || grep -rn "config KSU" KernelSU/Kconfig 2>/dev/null | head -20 || true
-          
+
+      - name: 修复 KSU Next 的 seccomp.filter_count
+        run: |
+          F="KernelSU-Next/kernel/core_hook.c"
+          if [ -f "$F" ]; then
+            echo "=== 原始 ==="
+            sed -n '128,140p' "$F"
+            # 注释掉 filter_count 那行
+            sed -i 's|^\(\s*\)atomic_set(&current->seccomp\.filter_count, 0);|\1/* Removed by patch: no filter_count in 4.14 */|' "$F"
+            echo "=== 修改后 ==="
+            sed -n '128,140p' "$F"
+          else
+            echo "找不到 $F"
+            find KernelSU-Next -name "core_hook.c"
+          fi
+      
       - name: 编译内核
         run: |
           export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
