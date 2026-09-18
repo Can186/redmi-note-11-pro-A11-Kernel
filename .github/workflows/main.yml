@@ -10,6 +10,13 @@ jobs:
     steps:
       - name: 拉取内核源码
         uses: actions/checkout@v4
+      - name: 添加 stpcpy 实现
+        run: |
+          if ! grep -q "char \*stpcpy" lib/string.c; then
+            printf '\n#ifndef __HAVE_ARCH_STPCPY\nchar *stpcpy(char *dest, const char *src)\n{\n\twhile ((*dest = *src) != '\''\\0'\'') {\n\t\tdest++;\n\t\tsrc++;\n\t}\n\treturn dest;\n}\nEXPORT_SYMBOL(stpcpy);\n#endif\n' >> lib/string.c
+          fi
+          grep -n "stpcpy" lib/string.c | head -5
+
 
       - name: 安装工具链
         run: |
@@ -36,8 +43,6 @@ jobs:
 
           echo "=== 工具链检查 ==="
           /opt/clang12/bin/clang --version || true
-          ls /opt/gcc-arm64/bin/ | head -5
-          ls /opt/gcc-arm32/bin/ | head -5
 
           exit 0
 
