@@ -156,28 +156,27 @@ jobs:
             sed -i 's/\bCONNLOG_TYPE_WIFI\b/CONN_DEBUG_TYPE_WIFI/g' "$ADAPTOR_C"
             grep -n "CONN_DEBUG_TYPE_WIFI" "$ADAPTOR_C" | head -5
           fi
-      - name: 修复 gps_drv_init 空参数
+      - name: 恢复 conninfra drv_init 原始文件
         run: |
-          F="vendor/mediatek/kernel_modules/connectivity/conninfra/drv_init/gps_drv_init.c"
-          if [ -f "$F" ]; then
-            echo "=== 原始 ==="
-            grep -n "mtk_wcn_gpsdl_drv_init" "$F"
-            sed -i 's/mtk_wcn_gpsdl_drv_init()/mtk_wcn_gpsdl_drv_init(void)/' "$F"
-            echo "=== 修改后 ==="
-            grep -n "mtk_wcn_gpsdl_drv_init" "$F"
-          else
-            echo "找不到 $F"
-            find vendor/mediatek/kernel_modules/connectivity/ -name "gps_drv_init.c"
-          fi
+          BASE_URL="https://raw.githubusercontent.com/MiCode/MTK_kernel_modules/pissarro-r-oss/connectivity/conninfra/drv_init"
+          DIR="vendor/mediatek/kernel_modules/connectivity/conninfra/drv_init"
+          for f in bluetooth_drv_init.c gps_drv_init.c conn_drv_init.c fm_drv_init.c wlan_drv_init.c; do
+            curl -L -s -o "$DIR/$f" "$BASE_URL/$f"
+          done
+          echo "=== 恢复后 ==="
+          grep -n "_drv_init" "$DIR"/bluetooth_drv_init.c "$DIR"/gps_drv_init.c
+
       - name: 修复 conninfra drv_init 空参数
         run: |
           DIR="vendor/mediatek/kernel_modules/connectivity/conninfra/drv_init"
           if [ -d "$DIR" ]; then
             for f in "$DIR"/*.c; do
               echo "=== $f ==="
-              grep -nE "(do_[a-z_]+_drv_init|drv_init)\(\)" "$f" || true
-              sed -i -E 's/([a-zA-Z_][a-zA-Z0-9_]*_drv_init)\(\)/\1(void)/g' "$f"
-              grep -nE "_drv_init\(void\)" "$f" || true
+              echo "--- 修改前 ---"
+              grep -n "_drv_init" "$f"
+              sed -i 's/\(__attribute__((weak)) [a-zA-Z_][a-zA-Z0-9_]*_drv_init\)()/\1(void)/' "$f"
+              echo "--- 修改后 ---"
+              grep -n "_drv_init" "$f"
             done
           fi
       - name: 编译内核
