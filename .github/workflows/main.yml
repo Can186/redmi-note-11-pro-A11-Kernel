@@ -156,7 +156,13 @@ jobs:
             sed -i 's/\bCONNLOG_TYPE_WIFI\b/CONN_DEBUG_TYPE_WIFI/g' "$ADAPTOR_C"
             grep -n "CONN_DEBUG_TYPE_WIFI" "$ADAPTOR_C" | head -5
           fi
-
+      - name: 修复 gps_drv_init 空参数
+        run: |
+          GPS_C="vendor/mediatek/kernel_modules/connectivity/wmt_drv/drv_init/gps_drv_init.c"
+          if [ -f "$GPS_C" ]; then
+            sed -i 's/mtk_wcn_gpsdl_drv_init()/mtk_wcn_gpsdl_drv_init(void)/g' "$GPS_C"
+            grep -n "mtk_wcn_gpsdl_drv_init" "$GPS_C"
+          fi
       - name: 编译内核
         run: |
           export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
