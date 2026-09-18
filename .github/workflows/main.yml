@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: debian-13
+    runs-on: ubuntu-22.04
     steps:
       - name: 拉取内核源码
         uses: actions/checkout@v4
@@ -20,8 +20,8 @@ jobs:
 
       - name: 安装工具链
         run: |
-          sudo apt-get update || true
-          sudo apt-get install -y flex bison bc libelf-dev libssl-dev make zip wget git python3 || true
+          sudo apt-get update -o Acquire::Retries=3 || true
+          sudo apt-get install -y --no-install-recommends libelf-dev bison flex bc || true
 
           echo "=== 检查依赖 ==="
           for pkg in flex bison bc make zip wget git python3; do
