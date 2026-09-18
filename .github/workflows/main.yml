@@ -195,6 +195,16 @@ jobs:
           ls -la fs/susfs.c 2>/dev/null || echo "fs/susfs.c 不存在"
           ls -la include/linux/susfs.h 2>/dev/null || echo "include/linux/susfs.h 不存在"
           ls -la include/linux/susfs_def.h 2>/dev/null || echo "include/linux/susfs_def.h 不存在"
+
+      - name: 修复 task_mmu.c smap_gather_stats
+        run: |
+          F="fs/proc/task_mmu.c"
+          if [ -f "$F" ]; then
+            sed -i '/static void smap_gather_stats/,/^}/{s/return 0;/return;/}' "$F"
+            grep -n "smap_gather_stats" "$F" | head -5
+          fi
+
+
       
       - name: 编译内核
         run: |
