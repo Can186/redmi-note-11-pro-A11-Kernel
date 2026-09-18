@@ -20,6 +20,15 @@ jobs:
 
       - name: 安装工具链
         run: |
+          # 屏蔽非必需的第三方源
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list || true
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list || true
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.list || true
+          sudo rm -f /etc/apt/sources.list.d/* 2>/dev/null || true
+
+          # 替换 azure 为官方 archive
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list || true
+
           sudo apt-get update -o Acquire::Retries=3 || true
           sudo apt-get install -y --no-install-recommends libelf-dev bison flex bc || true
 
