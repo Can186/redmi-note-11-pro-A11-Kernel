@@ -43,14 +43,6 @@ jobs:
           export CLANG_TRIPLE=aarch64-linux-gnu-
           export KCFLAGS="-Wno-error -Wno-void-pointer-to-int-cast"
 
-          echo "=== Makefile 里 KBUILD_CFLAGS 定义 ==="
-          grep -n "^KBUILD_CFLAGS" Makefile | head -5
-
-          sed -i -E 's|^(KBUILD_CFLAGS[[:space:]]*:=.*)$|\1 -Wno-error -Wno-void-pointer-to-int-cast|' Makefile
-
-          echo "=== 修改后 KBUILD_CFLAGS ==="
-          grep -n "^KBUILD_CFLAGS" Makefile | head -5
-
           make -j$(nproc) ARCH=arm64 SUBARCH=arm64 CC=clang LD=ld.lld O=out pissarro_user_defconfig
 
           scripts/config --file out/.config \
