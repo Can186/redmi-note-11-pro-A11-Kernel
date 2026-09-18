@@ -156,12 +156,22 @@ jobs:
             sed -i 's/\bCONNLOG_TYPE_WIFI\b/CONN_DEBUG_TYPE_WIFI/g' "$ADAPTOR_C"
             grep -n "CONN_DEBUG_TYPE_WIFI" "$ADAPTOR_C" | head -5
           fi
-      - name: 修复 gps_drv_init 空参数
+      - name: 屏蔽 GPS/BT/FM 编译（只保留 WLAN）
         run: |
-          GPS_C="vendor/mediatek/kernel_modules/connectivity/wmt_drv/drv_init/gps_drv_init.c"
-          if [ -f "$GPS_C" ]; then
-            sed -i 's/mtk_wcn_gpsdl_drv_init()/mtk_wcn_gpsdl_drv_init(void)/g' "$GPS_C"
-            grep -n "mtk_wcn_gpsdl_drv_init" "$GPS_C"
+          MK="vendor/mediatek/kernel_modules/connectivity/wmt_drv/drv_init/Makefile"
+          if [ -f "$MK" ]; then
+            echo "=== 原始 ==="
+            cat "$MK"
+            echo ""
+            echo "=== 屏蔽 gps/bt/fm ==="
+            sed -i -E 's|^([[:space:]]*obj-[ym][^#]*)(gps_drv_init\.o)|\1# \2|g' "$MK"
+            sed -i -E 's|^([[:space:]]*obj-[ym][^#]*)(bluetooth_drv_init\.o)|\1# \2|g' "$MK"
+            sed -i -E 's|^([[:space:]]*obj-[ym][^#]*)(fm_drv_init\.o)|\1# \2|g' "$MK"
+            echo ""
+            echo "=== 修改后 ==="
+            cat "$MK"
+          else
+            echo "找不到 $MK"
           fi
       - name: 编译内核
         run: |
@@ -201,8 +211,8 @@ jobs:
           echo "=== 查找所有 error 行 ==="
           grep -n -i "error" build.log 2>/dev/null | grep -v "Werror" | head -50 || true
           echo ""
-          echo "=== 最后 150 行 ==="
-          tail -150 build.log 2>/dev/null || true
+          echo "=== 最后 300 行 ==="
+          tail -300 build.log 2>/dev/null || true
 
       - name: 上传编译产物
         uses: actions/upload-artifact@v4
