@@ -1,5 +1,8 @@
 name: Build pissarro Kernel
-on: push
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -40,12 +43,11 @@ jobs:
           export CLANG_TRIPLE=aarch64-linux-gnu-
           export KCFLAGS="-Wno-error -Wno-void-pointer-to-int-cast"
 
-          # 看 Makefile 里 KBUILD_CFLAGS 实际格式
           echo "=== Makefile 里 KBUILD_CFLAGS 定义 ==="
           grep -n "^KBUILD_CFLAGS" Makefile | head -5
 
-          # 在 Makefile 层追加全局禁用 Werror（针对空格数做兼容）
           sed -i -E 's|^(KBUILD_CFLAGS[[:space:]]*:=.*)$|\1 -Wno-error -Wno-void-pointer-to-int-cast|' Makefile
+
           echo "=== 修改后 KBUILD_CFLAGS ==="
           grep -n "^KBUILD_CFLAGS" Makefile | head -5
 
