@@ -181,14 +181,31 @@ jobs:
           fi
       - name: 集成 ReSukiSU + SUSFS
         run: |
-         curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
-         curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh" | bash
-         curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch" | patch -p1
-
-      - name: 修复 task_mmu.c smap_gather_stats
+          echo "=== 1. ReSukiSU setup ==="
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+          ls -la KernelSU/ | head -20
+          echo "=== 2. SUSFS inline hook patches ==="
+          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh" | bash
+          echo "=== 3. SUSFS 4.14 patch ==="
+          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch" -o /tmp/susfs_4.14.patch
+          patch -p1 < /tmp/susfs_4.14.patch || echo "patch 失败（可能已应用或冲突）"
+          echo "=== patch 结果 ==="
+          ls -la fs/susfs.c 2>/dev/null || echo "fs/susfs.c 不存在"
+          ls -la include/linux/susfs.h 2>/dev/null || echo "include/linux/susfs.h 不存在"
+          ls -la include/linux/susfs_def.h 2>/dev/null || echo "include/linux/susfs_def.h 不存在"
+      
+      - name: 修复 task_mmu.c
         run: |
           F="fs/proc/task_mmu.c"
           if [ -f "$F" ]; then
+            echo "=== 1. 插入 susfs_def.h include ==="
+            if ! grep -q "susfs_def.h" "$F"; then
+              LAST_INC=$(grep -n '^#include' "$F" | tail -1 | cut -d: -f1)
+              sed -i "${LAST_INC}a #include <linux/susfs_def.h>" "$F"
+            fi
+            grep -n "susfs_def.h" "$F"
+
+            echo "=== 2. 修复 smap_gather_stats ==="
             sed -i '/static void smap_gather_stats/,/^}/{s/return 0;/return;/}' "$F"
             grep -n "smap_gather_stats" "$F" | head -5
           fi
