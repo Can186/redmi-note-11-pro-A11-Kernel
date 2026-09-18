@@ -169,6 +169,17 @@ jobs:
             echo "找不到 $F"
             find vendor/mediatek/kernel_modules/connectivity/ -name "gps_drv_init.c"
           fi
+      - name: 修复 conninfra drv_init 空参数
+        run: |
+          DIR="vendor/mediatek/kernel_modules/connectivity/conninfra/drv_init"
+          if [ -d "$DIR" ]; then
+            for f in "$DIR"/*.c; do
+              echo "=== $f ==="
+              grep -nE "(do_[a-z_]+_drv_init|drv_init)\(\)" "$f" || true
+              sed -i -E 's/([a-zA-Z_][a-zA-Z0-9_]*_drv_init)\(\)/\1(void)/g' "$f"
+              grep -nE "_drv_init\(void\)" "$f" || true
+            done
+          fi
       - name: 编译内核
         run: |
           export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
