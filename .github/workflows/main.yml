@@ -181,20 +181,9 @@ jobs:
           fi
       - name: 集成 ReSukiSU + SUSFS
         run: |
-          echo "=== 1. ReSukiSU setup ==="
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
-          ls -la KernelSU/ | head -20
-
-          echo "=== 2. SUSFS inline hook patches ==="
-          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh" | bash
-
-          echo "=== 3. SUSFS 4.14 patch ==="
-          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch" -o /tmp/susfs_4.14.patch
-          patch -p1 < /tmp/susfs_4.14.patch || echo "patch 失败（可能已应用或冲突）"
-          echo "=== patch 结果 ==="
-          ls -la fs/susfs.c 2>/dev/null || echo "fs/susfs.c 不存在"
-          ls -la include/linux/susfs.h 2>/dev/null || echo "include/linux/susfs.h 不存在"
-          ls -la include/linux/susfs_def.h 2>/dev/null || echo "include/linux/susfs_def.h 不存在"
+         curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+         curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh" | bash
+         curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch" | patch -p1
 
       - name: 修复 task_mmu.c smap_gather_stats
         run: |
