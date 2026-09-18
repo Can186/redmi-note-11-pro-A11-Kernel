@@ -1,5 +1,6 @@
 name: Build pissarro Kernel
-on: push
+on:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,6 +30,7 @@ jobs:
           /opt/clang12/bin/clang --version || true
           ls /opt/gcc-arm64/bin/ | head -5
           ls /opt/gcc-arm32/bin/ | head -5
+
       - name: 编译内核
         run: |
           export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
@@ -37,8 +39,17 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-androidkernel-
           export CROSS_COMPILE_ARM32=arm-linux-androideabi-
           export CLANG_TRIPLE=aarch64-linux-gnu-
-          export KCFLAGS="-Wno-error"
-          
+          export KCFLAGS="-Wno-error -Wno-void-pointer-to-int-cast"
+
+          # 看 Makefile 里 KBUILD_CFLAGS 实际格式
+          echo "=== Makefile 里 KBUILD_CFLAGS 定义 ==="
+          grep -n "^KBUILD_CFLAGS" Makefile | head -5
+
+          # 在 Makefile 层追加全局禁用 Werror（针对空格数做兼容）
+          sed -i -E 's|^(KBUILD_CFLAGS[[:space:]]*:=.*)$|\1 -Wno-error -Wno-void-pointer-to-int-cast|' Makefile
+          echo "=== 修改后 KBUILD_CFLAGS ==="
+          grep -n "^KBUILD_CFLAGS" Makefile | head -5
+
           make -j$(nproc) ARCH=arm64 SUBARCH=arm64 CC=clang LD=ld.lld O=out pissarro_user_defconfig
 
           scripts/config --file out/.config \
@@ -48,7 +59,6 @@ jobs:
 
           make -j$(nproc) ARCH=arm64 SUBARCH=arm64 CC=clang LD=ld.lld O=out olddefconfig
 
-          # olddefconfig 后再次强制设置，防止被覆盖
           scripts/config --file out/.config --set-str CONFIG_LOCALVERSION "-六花"
 
           echo "=== 验证配置 ==="
@@ -61,10 +71,10 @@ jobs:
         if: failure()
         run: |
           echo "=== 查找所有 error 行 ==="
-          grep -n -i "error" build.log | grep -v "Werror" | head -50
+          grep -n -i "error" build.log 2>/dev/null | grep -v "Werror" | head -50 || true
           echo ""
           echo "=== 最后 150 行 ==="
-          tail -150 build.log
+          tail -150 build.log 2>/dev/null || true
 
       - name: 上传编译产物
         uses: actions/upload-artifact@v4
