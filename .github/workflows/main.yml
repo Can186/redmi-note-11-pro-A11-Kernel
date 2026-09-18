@@ -179,28 +179,22 @@ jobs:
               grep -n "_drv_init" "$f"
             done
           fi
-      - name: 集成 KernelSU Next v1.1.0
+      - name: 集成 ReSukiSU + SUSFS
         run: |
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s v1.1.0
-          echo "=== KernelSU-Next 目录 ==="
-          ls -la KernelSU-Next/ 2>/dev/null || ls -la KernelSU/ 2>/dev/null || true
-          echo "=== Kconfig 里的 config 名 ==="
-          grep -rn "config KSU" KernelSU-Next/Kconfig 2>/dev/null | head -20 || grep -rn "config KSU" KernelSU/Kconfig 2>/dev/null | head -20 || true
+          echo "=== 1. ReSukiSU setup ==="
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+          ls -la KernelSU/ | head -20
 
-      - name: 修复 KSU Next 的 seccomp.filter_count
-        run: |
-          F="KernelSU-Next/kernel/core_hook.c"
-          if [ -f "$F" ]; then
-            echo "=== 原始 ==="
-            sed -n '128,140p' "$F"
-            # 注释掉 filter_count 那行
-            sed -i 's|^\(\s*\)atomic_set(&current->seccomp\.filter_count, 0);|\1/* Removed by patch: no filter_count in 4.14 */|' "$F"
-            echo "=== 修改后 ==="
-            sed -n '128,140p' "$F"
-          else
-            echo "找不到 $F"
-            find KernelSU-Next -name "core_hook.c"
-          fi
+          echo "=== 2. SUSFS inline hook patches ==="
+          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh" | bash
+
+          echo "=== 3. SUSFS 4.14 patch ==="
+          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch" -o /tmp/susfs_4.14.patch
+          patch -p1 < /tmp/susfs_4.14.patch || echo "patch 失败（可能已应用或冲突）"
+          echo "=== patch 结果 ==="
+          ls -la fs/susfs.c 2>/dev/null || echo "fs/susfs.c 不存在"
+          ls -la include/linux/susfs.h 2>/dev/null || echo "include/linux/susfs.h 不存在"
+          ls -la include/linux/susfs_def.h 2>/dev/null || echo "include/linux/susfs_def.h 不存在"
       
       - name: 编译内核
         run: |
@@ -220,10 +214,19 @@ jobs:
             --enable CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH \
             --enable CONFIG_KSU \
             --enable CONFIG_KPROBES \
-            --enable CONFIG_HAVE_KPROBES \
             --enable CONFIG_KPROBE_EVENTS \
             --enable CONFIG_KALLSYMS \
             --enable CONFIG_KALLSYMS_ALL \
+            --enable CONFIG_KSU_SUSFS \
+            --enable CONFIG_KSU_SUSFS_SUS_PATH \
+            --enable CONFIG_KSU_SUSFS_SUS_MOUNT \
+            --enable CONFIG_KSU_SUSFS_SUS_KSTAT \
+            --enable CONFIG_KSU_SUSFS_SPOOF_UNAME \
+            --enable CONFIG_KSU_SUSFS_ENABLE_LOG \
+            --enable CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+            --enable CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
+            --enable CONFIG_KSU_SUSFS_OPEN_REDIRECT \
+            --enable CONFIG_KSU_SUSFS_SUS_MAP \
             --enable CONFIG_WLAN_DRV_BUILD_IN \
             --enable CONFIG_MTK_COMBO_WIFI \
             --set-str CONFIG_MTK_COMBO_CHIP CONSYS_6877 \
