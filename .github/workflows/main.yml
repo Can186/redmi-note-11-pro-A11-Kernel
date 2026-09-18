@@ -102,4 +102,106 @@ jobs:
           # Pissarro (MT6877) 用 conninfra，不是 common
           ln -snf "$(pwd)/vendor/mediatek/kernel_modules/connectivity/conninfra" "$CONN_DIR/wmt_drv"
           ln -snf "$(pwd)/vendor/mediatek/kernel_modules/connectivity/wlan/adaptor" "$CONN_DIR/wmt_chrdev_wifi"
-          ln -snf "$(pwd)/vendor/mediatek/kernel_modules/connectivity/wl
+          ln -snf "$(pwd)/vendor/mediatek/kernel_modules/connectivity/wlan/core/gen4m" "$CONN_DIR/wlan_drv_gen4m"
+
+          ls -la "$CONN_DIR" | grep "^l"
+          test -f "$CONN_DIR/wmt_drv/Makefile" && echo "wmt_drv/Makefile OK" || echo "wmt_drv/Makefile MISSING"
+          test -f "$CONN_DIR/wmt_chrdev_wifi/Makefile" && echo "wmt_chrdev_wifi/Makefile OK" || echo "wmt_chrdev_wifi/Makefile MISSING"
+          test -f "$CONN_DIR/wlan_drv_gen4m/Makefile" && echo "wlan_drv_gen4m/Makefile OK" || echo "wlan_drv_gen4m/Makefile MISSING"
+
+      - name: 修复 wmt_drv 的 AUTOCONF_H
+        run: |
+          WMT_MK="drivers/misc/mediatek/connectivity/wmt_drv/Makefile"
+          if [ -f "$WMT_MK" ]; then
+            sed -i '1i AUTOCONF_H ?= $(srctree)/$(objtree)/include/generated/autoconf.h' "$WMT_MK"
+            head -5 "$WMT_MK"
+          fi
+
+      - name: 修复头文件路径
+        run: |
+          BASE="\$(srctree)/vendor/mediatek/kernel_modules/connectivity"
+          ADAPTOR_MK="vendor/mediatek/kernel_modules/connectivity/wlan/adaptor/Makefile"
+          GEN4M_MK="vendor/mediatek/kernel_modules/connectivity/wlan/core/gen4m/Makefile"
+
+          for i in \
+            "$BASE/conninfra/debug_utility" \
+            "$BASE/conninfra/debug_utility/include" \
+            "$BASE/conninfra/debug_utility/coredump" \
+            "$BASE/conninfra/debug_utility/coredump/platform/include" \
+            "$BASE/conninfra/debug_utility/connsyslog/include" \
+            "$BASE/conninfra/debug_utility/connsyslog/platform/include" \
+            "$BASE/conninfra/debug_utility/step/include" \
+            "$BASE/conninfra/include" \
+            "$BASE/conninfra/core/include" \
+            "$BASE/conninfra/platform/include" \
+            "$BASE/conninfra/base/include" \
+            "$BASE/conninfra/conf/include"; do
+            if [ -f "$ADAPTOR_MK" ]; then
+              sed -i "1i ccflags-y += -I$i" "$ADAPTOR_MK"
+            fi
+            if [ -f "$GEN4M_MK" ]; then
+              sed -i "1i ccflags-y += -I$i" "$GEN4M_MK"
+            fi
+          done
+
+          echo "=== adaptor 前 20 行 ==="
+          head -20 "$ADAPTOR_MK" 2>/dev/null || true
+          echo "=== gen4m 前 20 行 ==="
+          head -20 "$GEN4M_MK" 2>/dev/null || true
+
+      - name: 修复 CONNLOG_TYPE_WIFI
+        run: |
+          ADAPTOR_C="vendor/mediatek/kernel_modules/connectivity/wlan/adaptor/fw_log_wifi.c"
+          if [ -f "$ADAPTOR_C" ]; then
+            sed -i 's/\bCONNLOG_TYPE_WIFI\b/CONN_DEBUG_TYPE_WIFI/g' "$ADAPTOR_C"
+            grep -n "CONN_DEBUG_TYPE_WIFI" "$ADAPTOR_C" | head -5
+          fi
+
+      - name: 编译内核
+        run: |
+          export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-androidkernel-
+          export CROSS_COMPILE_ARM32=arm-linux-androideabi-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export KCFLAGS="-Wno-error -Wno-void-pointer-to-int-cast"
+
+          make -j$(nproc) ARCH=arm64 SUBARCH=arm64 CC=clang LD=ld.lld O=out pissarro_user_defconfig
+
+          scripts/config --file out/.config \
+            --disable CONFIG_CC_STACKPROTECTOR_STRONG \
+            --disable LTO_CLANG \
+            --enable CONFIG_WLAN_DRV_BUILD_IN \
+            --enable CONFIG_MTK_COMBO_WIFI \
+            --set-str CONFIG_MTK_COMBO_CHIP CONSYS_6877 \
+            --set-str CONFIG_LOCALVERSION "-六花"
+
+          make -j$(nproc) ARCH=arm64 SUBARCH=arm64 CC=clang LD=ld.lld O=out olddefconfig
+
+          scripts/config --file out/.config --set-str CONFIG_LOCALVERSION "-六花"
+
+          echo "=== 验证配置 ==="
+          grep -E "CONFIG_(LTO_CLANG|CC_STACKPROTECTOR_STRONG|LOCALVERSION|WLAN_DRV_BUILD_IN|MTK_COMBO_WIFI|MTK_COMBO_CHIP)" out/.config || true
+
+          make -j$(nproc) ARCH=arm64 SUBARCH=arm64 CC=clang LD=ld.lld O=out \
+            AUTOCONF_H=$(pwd)/out/include/generated/autoconf.h \
+            CONFIG_WLAN_DRV_BUILD_IN=y 2>&1 | tee build.log
+          exit ${PIPESTATUS[0]}
+
+      - name: 编译失败时打印错误上下文
+        if: failure()
+        run: |
+          echo "=== 查找所有 error 行 ==="
+          grep -n -i "error" build.log 2>/dev/null | grep -v "Werror" | head -50 || true
+          echo ""
+          echo "=== 最后 150 行 ==="
+          tail -150 build.log 2>/dev/null || true
+
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel_pissarro_wlan
+          path: |
+            out/arch/arm64/boot/Image
+            out/arch/arm64/boot/dts/mediatek/k6877v1_64.dtb
