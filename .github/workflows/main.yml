@@ -173,6 +173,14 @@ jobs:
           else
             echo "找不到 $MK"
           fi
+      - name: 修复 gps_drv_init
+        run: |
+          F="vendor/mediatek/kernel_modules/connectivity/wmt_drv/drv_init/gps_drv_init.c"
+          if [ -f "$F" ]; then
+            sed -i 's/mtk_wcn_gpsdl_drv_init()/mtk_wcn_gpsdl_drv_init(void)/' "$F"
+            echo "=== 验证 ==="
+            grep -n "mtk_wcn_gpsdl_drv_init" "$F"
+          fi
       - name: 编译内核
         run: |
           export PATH="/opt/clang12/bin:/opt/gcc-arm64/bin:/opt/gcc-arm32/bin:$PATH"
